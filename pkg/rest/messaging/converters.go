@@ -2,54 +2,11 @@ package messaging
 
 import (
 	"context"
-	"encoding/base64"
-	"github.com/Cobalt0s/creme-brulee/pkg/rest/pagination"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"strings"
 	"time"
 )
-
-func OptionalStringToPage(ctx context.Context, fieldName string, optional *string) (*pagination.PageCursor, error) {
-	log := ctxlogrus.Extract(ctx)
-	if optional != nil {
-		pageCursor := &pagination.PageCursor{}
-		invalidFieldErr := InvalidField{
-			Name:   fieldName,
-			Format: "page",
-		}
-
-		data, err := base64.StdEncoding.DecodeString(*optional)
-		if err != nil {
-			log.Debugf("field %v is not in base64 format", fieldName)
-			return nil, invalidFieldErr
-		}
-
-		split := strings.Split(string(data), "|")
-		if len(split) != 2 {
-			log.Debugf("field %v is not in [timestamp|uuid] format", fieldName)
-			return nil, invalidFieldErr
-		}
-
-		parsedTime, err := time.Parse(pagination.PageTimeFormat, split[0])
-		if err != nil {
-			log.Debugf("field %v has invalid timestamp format [%v]", fieldName, split[0])
-			return nil, invalidFieldErr
-		}
-		log.Debugf("page time %v parsed as %v", split[0], parsedTime)
-		pageCursor.Time = parsedTime
-
-		pageNum, err := uuid.Parse(split[1])
-		if err != nil {
-			log.Debugf("field %v is not in uuid format", fieldName)
-			return nil, invalidFieldErr
-		}
-		pageCursor.Num = pageNum
-
-		return pageCursor, nil
-	}
-	return nil, nil
-}
 
 func OptionalStringToUUID(ctx context.Context, fieldName string, optional *string) (*uuid.UUID, error) {
 	log := ctxlogrus.Extract(ctx)

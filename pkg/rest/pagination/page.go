@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/Cobalt0s/creme-brulee/pkg/rest/messaging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -41,6 +43,47 @@ type Pagination struct {
 type QP struct {
 	PageNum  *string `form:"pageNum"`
 	PageSize *int    `form:"pageSize"`
+}
+
+func OptionalStringToPage(ctx context.Context, fieldName string, optional *string) (*PageCursor, error) {
+	log := ctxlogrus.Extract(ctx)
+	if optional != nil {
+		pageCursor := &PageCursor{}
+		invalidFieldErr := messaging.InvalidField{
+			Name:   fieldName,
+			Format: "page",
+		}
+
+		data, err := base64.StdEncoding.DecodeString(*optional)
+		if err != nil {
+			log.Debugf("field %v is not in base64 format", fieldName)
+			return nil, invalidFieldErr
+		}
+
+		split := strings.Split(string(data), "|")
+		if len(split) != 2 {
+			log.Debugf("field %v is not in [timestamp|uuid] format", fieldName)
+			return nil, invalidFieldErr
+		}
+
+		parsedTime, err := time.Parse(PageTimeFormat, split[0])
+		if err != nil {
+			log.Debugf("field %v has invalid timestamp format [%v]", fieldName, split[0])
+			return nil, invalidFieldErr
+		}
+		log.Debugf("page time %v parsed as %v", split[0], parsedTime)
+		pageCursor.Time = parsedTime
+
+		pageNum, err := uuid.Parse(split[1])
+		if err != nil {
+			log.Debugf("field %v is not in uuid format", fieldName)
+			return nil, invalidFieldErr
+		}
+		pageCursor.Num = pageNum
+
+		return pageCursor, nil
+	}
+	return nil, nil
 }
 
 func ResolvePageSize(size *int) int {
@@ -84,7 +127,7 @@ type Page struct {
 }
 
 func CreatePage(ctx context.Context, qp QP) (*Page, error) {
-	pageCursor, err := messaging.OptionalStringToPage(ctx, "pageNum", qp.PageNum)
+	pageCursor, err := OptionalStringToPage(ctx, "pageNum", qp.PageNum)
 	if err != nil {
 		return nil, err
 	}
