@@ -11,9 +11,12 @@ type Baggage struct {
 	SentAt      TimeNano3339 `json:"sentAt,omitempty"`
 }
 
+func (b *Baggage) ResendToOne(receiver uuid.UUID) *Baggage {
+	return b.ResendTo([]uuid.UUID{receiver})
+}
+
 func (b *Baggage) ResendTo(receivers []uuid.UUID) *Baggage {
 	b.ReceiverIDs = receivers
-	b.SentAt = NewNano3339Time(time.Now())
 	return b
 }
 
@@ -35,6 +38,7 @@ func (f BFactory) StampForOne(receiver uuid.UUID) Baggage {
 }
 
 func (f BFactory) StampFor(receivers []uuid.UUID) Baggage {
-	f.ResendTo(receivers)
+	f.ReceiverIDs = receivers
+	f.SentAt = NewNano3339Time(time.Now())
 	return *f.Baggage
 }
