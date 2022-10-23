@@ -42,3 +42,7 @@ func (f BFactory) StampFor(receivers []uuid.UUID) Baggage {
 	f.SentAt = NewNano3339Time(time.Now())
 	return *f.Baggage
 }
+
+func (f BFactory) StampBy(actorID uuid.UUID) Baggage {
+	return f.By(actorID).StampFor([]uuid.UUID{})
+}
