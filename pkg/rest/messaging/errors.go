@@ -49,7 +49,7 @@ type LongField struct {
 }
 
 func (f LongField) Error() string {
-	return fmt.Sprintf("%v must be larger than %v", f.Name, f.Size)
+	return fmt.Sprintf("%v cannot be larger than %v", f.Name, f.Size)
 }
 
 func (f LongField) ToResponse() *errorResponse {
