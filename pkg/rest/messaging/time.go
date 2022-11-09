@@ -19,12 +19,13 @@ func NewNano3339Time(t time.Time) TimeNano3339 {
 	return TimeNano3339{Time: t}
 }
 
-func ParseNano3339Time(s string) (*time.Time, error) {
+func ParseNano3339Time(s string) (*TimeNano3339, error) {
 	parse, err := time.Parse(timeNanoFormat, s)
 	if err != nil {
 		return nil, err
 	}
-	return &parse, nil
+	result := NewNano3339Time(parse)
+	return &result, nil
 }
 
 type TimeNano3339 struct {

@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"strings"
-	"time"
 )
 
 func OptionalStringToUUID(ctx context.Context, fieldName string, optional *string) (*uuid.UUID, error) {
@@ -49,7 +48,7 @@ func OptionalStringToUUIDList(ctx context.Context, fieldName string, text *strin
 	return OptionalStringListToUUIDList(ctx, fieldName, stringList)
 }
 
-func OptionalStringToTime(ctx context.Context, fieldName string, text *string) (*time.Time, error) {
+func OptionalStringToNanoTime(ctx context.Context, fieldName string, text *string) (*TimeNano3339, error) {
 	if text != nil {
 		parseTime, err := ParseNano3339Time(*text)
 		if err != nil {
