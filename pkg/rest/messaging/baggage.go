@@ -24,8 +24,8 @@ type BFactory struct {
 	*Baggage
 }
 
-func BaggageFactory() BFactory {
-	return BFactory{&Baggage{}}
+func BaggageFactory() *BFactory {
+	return &BFactory{&Baggage{}}
 }
 
 func (f *BFactory) By(actorID uuid.UUID) *BFactory {
@@ -33,16 +33,16 @@ func (f *BFactory) By(actorID uuid.UUID) *BFactory {
 	return f
 }
 
-func (f BFactory) StampForOne(receiver uuid.UUID) Baggage {
+func (f *BFactory) StampForOne(receiver uuid.UUID) Baggage {
 	return f.StampFor([]uuid.UUID{receiver})
 }
 
-func (f BFactory) StampFor(receivers []uuid.UUID) Baggage {
+func (f *BFactory) StampFor(receivers []uuid.UUID) Baggage {
 	f.ReceiverIDs = receivers
 	f.SentAt = NewNano3339Time(time.Now())
 	return *f.Baggage
 }
 
-func (f BFactory) StampBy(actorID uuid.UUID) Baggage {
+func (f *BFactory) StampBy(actorID uuid.UUID) Baggage {
 	return f.By(actorID).StampFor([]uuid.UUID{})
 }

@@ -14,6 +14,14 @@ func AddHealthChecks(router *gin.Engine, database *gorm.DB) {
 	}
 }
 
+func AddHealthChecksNoDB(router *gin.Engine) {
+	checkRoutes := router.Group("/checks")
+	{
+		checkRoutes.GET("/healthz", healthz())
+		checkRoutes.GET("/readiness", healthz())
+	}
+}
+
 func healthz() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusNoContent, nil)
