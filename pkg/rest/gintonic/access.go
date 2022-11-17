@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	HeaderUserID = "UniFyi-User-Id"
-	HeaderRole   = "UniFyi-Role"
+	HeaderUserID = "User-Id"
+	HeaderRole   = "Role"
 )
 
 func UserScoped(c *gin.Context, ctx context.Context) (context.Context, bool) {
