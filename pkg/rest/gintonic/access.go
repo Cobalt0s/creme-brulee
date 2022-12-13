@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
-	"net/http"
 	"strconv"
 )
 
@@ -42,7 +41,6 @@ func UserScoped(c *gin.Context, ctx context.Context) (context.Context, bool) {
 	userID := c.GetHeader(HeaderUserID)
 	if userID == "" {
 		log.Errorf("request is missing header '%v'", HeaderUserID)
-		c.JSON(http.StatusInternalServerError, nil)
 		return ctx, false
 	}
 	userUUID, err := uuid.Parse(userID)
