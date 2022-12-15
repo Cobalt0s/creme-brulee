@@ -13,7 +13,12 @@ const (
 
 	CtxKeyUserID = "userID"
 	CtxKeyRole   = "userRole"
+	CtxKeyApp    = "appID"
 )
+
+func GetAppID(ctx context.Context) string {
+	return ctx.Value(CtxKeyApp).(string)
+}
 
 func GetUserID(ctx context.Context) uuid.UUID {
 	return ctx.Value(CtxKeyUserID).(uuid.UUID)

@@ -11,6 +11,7 @@ import (
 const (
 	HeaderUserID = "User-Id"
 	HeaderRole   = "Role"
+	HeaderApp    = "App-Id"
 )
 
 func UserScoped(c *gin.Context, ctx context.Context) (context.Context, bool) {
@@ -52,5 +53,20 @@ func UserScoped(c *gin.Context, ctx context.Context) (context.Context, bool) {
 	// Attach data to context
 	ctx = context.WithValue(ctx, CtxKeyUserID, userUUID)
 	ctx = context.WithValue(ctx, CtxKeyRole, userRoleEnum)
+	return ctx, true
+}
+
+func ApplicationScoped(c *gin.Context, ctx context.Context) (context.Context, bool) {
+	log := ctxlogrus.Extract(ctx)
+
+	// Extract user id and parse as uuid
+	appID := c.GetHeader(HeaderApp)
+	if appID == "" {
+		log.Errorf("request is missing header '%v'", HeaderApp)
+		return ctx, false
+	}
+
+	// Attach data to context
+	ctx = context.WithValue(ctx, CtxKeyApp, appID)
 	return ctx, true
 }
