@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
@@ -131,4 +132,16 @@ func GetEnvDuration(envName string) (time.Duration, error) {
 	}
 
 	return time.ParseDuration(val)
+}
+
+func GetEnvDecodedB64(envName string) ([]byte, error) {
+	variable, err := GetEnv(envName)
+	if err != nil {
+		return nil, err
+	}
+	decodedValue, err := base64.StdEncoding.DecodeString(variable)
+	if err != nil {
+		return nil, fmt.Errorf("cannot b64 decode %v", envName)
+	}
+	return decodedValue, nil
 }

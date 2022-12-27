@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"strings"
 )
 
 type BaseConfig struct {
@@ -30,6 +31,10 @@ func NewBaseConfig() (*BaseConfig, error) {
 		GinLogLevel: getGinLogLevel(logLevel),
 		Env:         envEnv,
 	}, nil
+}
+
+func (c BaseConfig) IsTest() bool {
+	return strings.ToLower(c.Env) == "testing"
 }
 
 func getLogLevel(logLevel string) logrus.Level {
