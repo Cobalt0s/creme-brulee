@@ -24,15 +24,15 @@ type KafkaHealthChecker struct {
 	consumer *kafka.Consumer
 }
 
-func NewMessageConsumer(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string) *MessageConsumer {
+func NewMessageConsumer(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string) (*MessageConsumer, func() error) {
 	return createMessageConsumer(ctx, arguments, db, cfg, clientID, consumerGroup, topicNames, false)
 }
 
-func NewMessageConsumerOrigin(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string) *MessageConsumer {
+func NewMessageConsumerOrigin(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string) (*MessageConsumer, func() error) {
 	return createMessageConsumer(ctx, arguments, db, cfg, clientID, consumerGroup, topicNames, true)
 }
 
-func createMessageConsumer(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string, origin bool) *MessageConsumer {
+func createMessageConsumer(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string, origin bool) (*MessageConsumer, func() error) {
 	log := ctxlogrus.Extract(ctx)
 
 	kc, kafkaError := kafka.NewConsumer(getConsumerMap(origin, cfg, clientID, consumerGroup))
@@ -44,7 +44,7 @@ func createMessageConsumer(ctx context.Context, arguments *messaging.ContextualA
 		consumer:   kc,
 		topicNames: topicNames,
 		db:         db,
-	}
+	}, kc.Close
 }
 
 func getConsumerMap(origin bool, cfg *config.KafkaConfig, clientID, consumerGroup string) *kafka.ConfigMap {
@@ -65,7 +65,6 @@ func (mc *MessageConsumer) Start(ctx context.Context, handleMessage TopicHandler
 		log.Errorf("failed to subscirbe to kafka topics %v", err)
 		return err
 	}
-	defer mc.consumer.Close()
 
 	for {
 		// TODO how often do we ask kafka for messages?
