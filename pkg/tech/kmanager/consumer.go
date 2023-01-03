@@ -14,9 +14,8 @@ type MessageConsumer struct {
 	consumer   *kafka.Consumer
 	topicNames []string
 	db         *gorm.DB
-	arguments      *messaging.ContextualArguments
-	closeRequested  chan bool
-	pollingFinished chan bool
+	arguments *messaging.ContextualArguments
+	stop      chan bool
 }
 
 type KafkaHealthChecker struct {
@@ -32,11 +31,7 @@ func NewMessageConsumerOrigin(ctx context.Context, arguments *messaging.Contextu
 }
 
 func (mc *MessageConsumer) Close() error {
-	select {
-	case mc.closeRequested <- true:
-	default:
-	}
-	<-mc.pollingFinished
+	mc.stop <- true
 	return mc.consumer.Close()
 }
 
@@ -48,12 +43,11 @@ func createMessageConsumer(ctx context.Context, arguments *messaging.ContextualA
 		log.Fatal(kafkaError)
 	}
 	return &MessageConsumer{
-		arguments:       arguments,
-		consumer:        kc,
-		topicNames:      topicNames,
-		db:              db,
-		closeRequested:  make(chan bool),
-		pollingFinished: make(chan bool),
+		arguments:  arguments,
+		consumer:   kc,
+		topicNames: topicNames,
+		db:         db,
+		stop:       make(chan bool),
 	}
 }
 
@@ -78,8 +72,7 @@ func (mc *MessageConsumer) Start(ctx context.Context, handleMessage TopicHandler
 
 	for {
 		select {
-		case <-mc.closeRequested:
-			mc.pollingFinished <- true
+		case <-mc.stop:
 			log.Info("Stopping message consumer")
 			return nil
 		default:
