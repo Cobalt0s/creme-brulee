@@ -75,8 +75,8 @@ func NewMessageProducer(cfg *config.KafkaConfig, clientID string) (*MessageProdu
 }
 
 func (p *MessageProducer) ProduceMessage(ctx context.Context, message Message) error {
-	value := message.Key()
-	key := message.Value()
+	key := message.Key()
+	value := message.Value()
 
 	ctx, span := TraceFromEventNamed(ctx, value, "Harvested")
 	defer span.End()
