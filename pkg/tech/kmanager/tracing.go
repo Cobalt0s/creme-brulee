@@ -112,3 +112,20 @@ func convertToByte1(source []byte) byte {
 func createUnmarshalErr(target string, err error) error {
 	return fmt.Errorf("failed converting %v due %v", target, err)
 }
+
+func enhanceWithCurrentTrace(ctx context.Context, value []byte) []byte {
+	log := ctxlogrus.Extract(ctx)
+	var payload map[string]interface{}
+	err := json.Unmarshal(value, &payload)
+	if err != nil {
+		log.Error(err)
+		return value
+	}
+	payload["trace"] = ExtractTrace(ctx)
+	marshal, err := json.Marshal(payload)
+	if err != nil {
+		log.Error(err)
+		return value
+	}
+	return marshal
+}

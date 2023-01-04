@@ -22,6 +22,8 @@ func CreateTopics(ctx context.Context, baseConf *config2.BaseConfig, cfg *config
 		log.Fatal(fmt.Errorf("failed to init kafka admin client %v", err))
 	}
 
+	topicNames = append(topicNames, DeadLetterQueueTopic)
+
 	topics := make([]kafka.TopicSpecification, len(topicNames))
 	for i, name := range topicNames {
 		topics[i] = kafka.TopicSpecification{

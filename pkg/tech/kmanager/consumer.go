@@ -10,12 +10,18 @@ import (
 	"time"
 )
 
+var (
+	DeadLetterQueueTopic = "DLQ"
+	retryTimeouts        = []int{0, 2, 4, 8, 16}
+)
+
 type MessageConsumer struct {
-	consumer   *kafka.Consumer
-	topicNames []string
-	db         *gorm.DB
-	arguments *messaging.ContextualArguments
-	stop      chan bool
+	consumer    *kafka.Consumer
+	topicNames  []string
+	db          *gorm.DB
+	arguments   *messaging.ContextualArguments
+	stop        chan bool
+	dlqProducer *MessageProducer
 }
 
 type KafkaHealthChecker struct {
@@ -23,11 +29,11 @@ type KafkaHealthChecker struct {
 }
 
 func NewMessageConsumer(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string) *MessageConsumer {
-	return createMessageConsumer(ctx, arguments, db, cfg, clientID, consumerGroup, topicNames, false)
+	return createFailsafeMessageConsumer(ctx, arguments, db, cfg, clientID, consumerGroup, topicNames, false)
 }
 
 func NewMessageConsumerOrigin(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string) *MessageConsumer {
-	return createMessageConsumer(ctx, arguments, db, cfg, clientID, consumerGroup, topicNames, true)
+	return createFailsafeMessageConsumer(ctx, arguments, db, cfg, clientID, consumerGroup, topicNames, true)
 }
 
 func (mc *MessageConsumer) Close() error {
@@ -35,19 +41,25 @@ func (mc *MessageConsumer) Close() error {
 	return mc.consumer.Close()
 }
 
-func createMessageConsumer(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string, origin bool) *MessageConsumer {
+func createFailsafeMessageConsumer(ctx context.Context, arguments *messaging.ContextualArguments, db *gorm.DB, cfg *config.KafkaConfig, clientID, consumerGroup string, topicNames []string, origin bool) *MessageConsumer {
 	log := ctxlogrus.Extract(ctx)
 
-	kc, kafkaError := kafka.NewConsumer(getConsumerMap(origin, cfg, clientID, consumerGroup))
-	if kafkaError != nil {
-		log.Fatal(kafkaError)
+	kc, err := kafka.NewConsumer(getConsumerMap(origin, cfg, clientID, consumerGroup))
+	if err != nil {
+		log.Fatal(err)
 	}
+	dlqProducer, err := NewMessageProducer(cfg, clientID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &MessageConsumer{
-		arguments:  arguments,
-		consumer:   kc,
-		topicNames: topicNames,
-		db:         db,
-		stop:       make(chan bool),
+		consumer:    kc,
+		topicNames:  topicNames,
+		db:          db,
+		arguments:   arguments,
+		stop:        make(chan bool),
+		dlqProducer: dlqProducer,
 	}
 }
 
@@ -73,16 +85,30 @@ func (mc *MessageConsumer) Start(ctx context.Context, handleMessage TopicHandler
 	for {
 		select {
 		case <-mc.stop:
-			log.Info("Stopping message consumer")
+			log.Info("stopping message consumer")
 			return nil
 		default:
 			if msg, err := mc.consumer.ReadMessage(5 * time.Second); err == nil {
 				if len(msg.Key) != 0 { // ignore heartbeat messages
-					if err := handleMessage(ctx, mc.arguments, mc.db, msg); err != nil {
-						log.Error("message will be NOT committed")
-						// TODO if we couldn't consume event from kafka we need to retry
-						// TODO do we fail the pod since it couldn't consume event?
-						continue
+					for _, retryTimeout := range retryTimeouts {
+						waitTime := time.Duration(retryTimeout) * time.Second
+						time.Sleep(waitTime)
+						err := handleMessage(ctx, mc.arguments, mc.db, msg)
+						if err != nil {
+							if retryTimeout != retryTimeouts[len(retryTimeouts)-1] {
+								log.Error("failed processing event, will retry")
+							} else {
+								log.Error("failed processing event, reached final retry")
+								if dlqErr := mc.dlqProducer.ProduceMessage(ctx, &DLQMessage{
+									MessageValue: msg.Value,
+									FormerTopic:  msg.TopicPartition.Topic,
+								}); dlqErr != nil {
+									return dlqErr
+								}
+							}
+						} else {
+							break
+						}
 					}
 					if _, err := mc.consumer.CommitMessage(msg); err != nil {
 						log.Warnf("couldn't commit message %v", err)
