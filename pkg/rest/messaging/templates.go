@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -39,7 +40,7 @@ func NewEventsFromTemplate(ctx context.Context, data []byte, eventTemplates map[
 	}
 
 	body := string(data)
-	log.Debugf("incoming data from kafka %v", body)
+	log.WithFields(logrus.Fields{"kafkaEvent": data}).Debug("incoming data from kafka")
 	if eventType, ok := objMap["type"]; ok {
 		event, ok := eventTemplates[eventType.(string)]
 		if !ok {
