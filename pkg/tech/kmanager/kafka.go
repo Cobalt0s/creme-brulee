@@ -8,6 +8,10 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 )
 
+var (
+	DefaultTopics = []string{DeadLetterQueueTopic}
+)
+
 func CreateTopics(ctx context.Context, baseConf *config2.BaseConfig, cfg *config2.KafkaConfig, topicNames []string) {
 	log := ctxlogrus.Extract(ctx)
 
@@ -22,7 +26,7 @@ func CreateTopics(ctx context.Context, baseConf *config2.BaseConfig, cfg *config
 		log.Fatal(fmt.Errorf("failed to init kafka admin client %v", err))
 	}
 
-	topicNames = append(topicNames, DeadLetterQueueTopic)
+	topicNames = addDefaultTopics(topicNames)
 
 	topics := make([]kafka.TopicSpecification, len(topicNames))
 	for i, name := range topicNames {
@@ -37,4 +41,23 @@ func CreateTopics(ctx context.Context, baseConf *config2.BaseConfig, cfg *config
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to auto create topics %v", err))
 	}
+}
+
+func addDefaultTopics(topicNames []string) []string {
+	// use set for unique topics
+	uniqueTopics := make(map[string]bool)
+	for _, name := range topicNames {
+		uniqueTopics[name] = true
+	}
+	for _, name := range DefaultTopics {
+		uniqueTopics[name] = true
+	}
+	// map to slice conversion
+	result := make([]string, len(uniqueTopics))
+	index := 0
+	for topic := range uniqueTopics {
+		result[index] = topic
+		index += 1
+	}
+	return topicNames
 }
